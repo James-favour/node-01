@@ -1,25 +1,61 @@
-const http = require('http');
-const server = http.createServer((req,res)=>{
-    if (req.url === '/'){
-        res.write(
-        `<h1>Welcome to Home page</h1>
-         <a href="/about">go to About page</a>`)
-        res.end();
-    } else if (req.url === '/about'){
-        res.write(`
-        <h1> Welcome to my ABOUT PAGE!</h1>
-        <a href="/">go to Home page</a>`)
-        res.end();
+
+const path = require('path');
+const express = require('express');
+const { logger } = require('./middleware/logEvents');
+const app = express();
+const cors = require('cors');
+const PORT = process.env.PORT ||4500;
+const errorHandler = require('./middleware/errorHandler');
+app.use(logger);
+
+// cross origin resource sharing
+
+const whiteList = ['https://www.yoursite.com', 'https://127.0.0.1.5500', 'http://localhost:4500'];
+const corsOptions = {
+    origin: (origin, callback) => {
+        if(whiteList.indexOf(origin) !== -1 || !origin) {
+            callback(null, true)
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    optionSuccessStatus: 200
+}
+app.use(cors(corsOptions));
+
+// form data
+
+app.use(express.urlencoded({ extended:false }));
+
+// json file
+
+app.use(express.json());
+
+// static files... 
+
+app.use(express.static(path.join(__dirname, 'public')));
+
+
+
+
+app.get('/', (req,res)=>{
+    res.sendFile(path.join(__dirname,'views', 'index.html'));
+});
+
+// for routes that dont exist
+app.all('*', (req,res)=>{
+    res.status(404);
+    if (req.accepts('html')){
+        res.sendFile(path.join(__dirname,'views', '404.html'));
+    } else if (req.accepts('json')){
+        res.json({error:'404 Page Not Found!!!'});
     } else {
-        res.write(
-        `<h1>Oooops!</h1>
-        <p>Page not found...........</p>
-        <a href="/">go to Home page`
-        )
-        res.end()
-        
+        res.type('txt').send('404 Page Not Found!!!')
     }
-}).listen(4000);
+});
  
+app.use(errorHandler)
 
-
+app.listen(PORT, ()=>{
+    console.log(`listening on port ${PORT}`)
+});
